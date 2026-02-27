@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=FormatPen
+Comment=Formatador de pendrive
+Exec=formatpen
+Icon=com.formatpen.FormatPen
+Terminal=false
+Type=Application
+Categories=System;Utility;
+StartupNotify=true

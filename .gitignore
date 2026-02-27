@@ -1,0 +1,14 @@
+/target
+Cargo.lock
+
+# IDEs / editores
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Rust
+*.rs.bk
+
+# macOS
+.DS_Store
