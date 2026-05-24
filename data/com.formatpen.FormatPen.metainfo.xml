@@ -28,8 +28,14 @@
     <category>System</category>
   </categories>
   <content_rating type="oars-1.1"/>
+    <screenshots>
+    <screenshot type="default">
+      <caption>Tela principal do FormatPen</caption>
+      <image>https://raw.githubusercontent.com/brayanmonteiroo/formatpen/v1.0.1/flatpak/screenshots/main.png</image>
+    </screenshot>
+  </screenshots>
   <releases>
-    <release version="1.0.0" date="2026-05-24">
+    <release version="1.0.1" date="2026-05-24">
       <description>
         <p>Primeira versão estável: formatação do disco inteiro com FAT32, exFAT, NTFS e ext4.</p>
       </description>
