@@ -15,7 +15,7 @@ Copy into: https://github.com/flathub/flathub/issues/new (new application templa
 | **Upstream** | https://github.com/brayanmonteiroo/formatpen |
 | **License** | MIT |
 | **Initial tag** | `v1.0.2` |
-| **Commit** | `13d894f95c54ac36621e1905277a17e961dd9f26` |
+| **Commit** | `c0534b883370760719402f809d1234cf1ee3e62d` |
 
 ## Summary
 
