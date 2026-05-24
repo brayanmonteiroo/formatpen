@@ -39,5 +39,5 @@ modules:
       - type: git
         url: https://github.com/brayanmonteiroo/formatpen.git
         tag: v1.0.2
-        commit: 13d894f95c54ac36621e1905277a17e961dd9f26
+        commit: c0534b883370760719402f809d1234cf1ee3e62d
       - cargo-sources.json
