@@ -4,13 +4,14 @@ Formatador de pendrive com interface gráfica GTK4/Libadwaita para Linux.
 
 ## Funcionalidades
 
-- Lista dispositivos removíveis (pendrives) conectados
+- Lista dispositivos removíveis (pendrives) conectados — **o disco inteiro** (`/dev/sdd`), não partições individuais
 - Seleção do dispositivo a formatar
 - Escolha do tipo de sistema de arquivos: FAT32, exFAT, NTFS, ext4
 - Definição do nome (label) do volume
-- Formatação via UDisks2 (Polkit) - sem necessidade de rodar como root
+- Formatação via UDisks2 (Polkit) — sem necessidade de rodar como root
+- Reparticiona o disco inteiro em **uma única partição** (remove layouts multiboot: Ventoy, ISO híbrida, etc.)
 - Diálogo de confirmação antes de formatar
-- Desmontagem automática antes da formatação
+- Desmontagem automática de todas as partições antes da formatação
 
 ## Requisitos
 
@@ -30,7 +31,7 @@ sudo dnf install gtk4-devel libadwaita-devel meson desktop-file-utils gcc
 sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc
 
 # Pacotes para formatação (geralmente já instalados)
-# dosfstools (FAT32), exfat-utils (exFAT), ntfs-3g (NTFS), e2fsprogs (ext4)
+# dosfstools (FAT32), exfatprogs (exFAT), ntfs-3g (NTFS), e2fsprogs (ext4), parted
 ```
 
 ## Compilação e execução
@@ -50,6 +51,21 @@ cargo install --path .
 formatpen
 ```
 
+## Testes
+
+```bash
+# Testes unitários (sem hardware, sem GTK em execução)
+cargo test
+
+# Testes de integração com UDisks2 (só listagem; não altera discos)
+cargo test --test udisks_integration
+
+# Formatação real em pendrive (APAGA DADOS — opcional)
+# export FORMATPEN_TEST_DISK=/org/freedesktop/UDisks2/block_devices/sdd
+# export FORMATPEN_TEST_DRIVE=/org/freedesktop/UDisks2/drives/...
+# cargo test --test udisks_integration formata_disco_de_teste_ponta_a_ponta -- --ignored --nocapture
+```
+
 ## Estrutura do projeto
 
 ```
@@ -57,6 +73,8 @@ FormatPen/
 ├── Cargo.toml
 ├── src/
 │   ├── main.rs
+│   ├── lib.rs
+│   ├── label_validation.rs
 │   ├── app.rs
 │   ├── window.rs
 │   ├── models/
@@ -64,6 +82,7 @@ FormatPen/
 │   ├── services/
 │   │   ├── udisks.rs
 │   │   └── format.rs
+│   ├── tests/          (integração UDisks2)
 │   └── ui/
 │       ├── drive_list.rs
 │       └── format_form.rs

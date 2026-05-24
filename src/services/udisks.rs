@@ -9,7 +9,6 @@ const UDISKS2_PATH: &str = "/org/freedesktop/UDisks2";
 const UDISKS2_SERVICE: &str = "org.freedesktop.UDisks2";
 const BLOCK_INTERFACE: &str = "org.freedesktop.UDisks2.Block";
 const DRIVE_INTERFACE: &str = "org.freedesktop.UDisks2.Drive";
-const FILESYSTEM_INTERFACE: &str = "org.freedesktop.UDisks2.Filesystem";
 const OBJECT_MANAGER_INTERFACE: &str = "org.freedesktop.DBus.ObjectManager";
 const PARTITION_INTERFACE: &str = "org.freedesktop.UDisks2.Partition";
 
@@ -18,14 +17,16 @@ type ManagedObjects = HashMap<
     HashMap<String, HashMap<String, OwnedValue>>,
 >;
 
+struct DriveMeta {
+    removable: bool,
+    model: Option<String>,
+}
+
 pub struct UDisksService;
 
-/**
- * Implementação do serviço de UDisks.
- */
 impl UDisksService {
     /**
-     * Lista os dispositivos removíveis.
+     * Lista discos removíveis inteiros (não partições individuais).
      */
     pub fn list_removable_drives() -> Result<Vec<Drive>> {
         let connection = Connection::system().context("Falha ao conectar ao D-Bus do sistema")?;
@@ -45,13 +46,16 @@ impl UDisksService {
             .deserialize()
             .context("Falha ao ler resposta do UDisks2")?;
 
-        let drive_cache = Self::extract_drives(&managed);
-        let mut partitions_by_drive: HashMap<String, Vec<Drive>> = HashMap::new();
-        let mut whole_disks_by_drive: HashMap<String, Vec<Drive>> = HashMap::new();
+        let drive_cache = Self::extract_drive_meta(&managed);
+        let mut drives = Vec::new();
 
         for (path, interfaces) in &managed {
             let path_str = path.as_str();
             if !path_str.contains("block_devices/") {
+                continue;
+            }
+
+            if interfaces.contains_key(PARTITION_INTERFACE) {
                 continue;
             }
 
@@ -61,29 +65,30 @@ impl UDisksService {
 
             let hint_system = Self::get_bool(block_props, "HintSystem").unwrap_or(true);
             let hint_ignore = Self::get_bool(block_props, "HintIgnore").unwrap_or(false);
-            if hint_system || hint_ignore {
+            let hint_partitionable =
+                Self::get_bool(block_props, "HintPartitionable").unwrap_or(false);
+            let read_only = Self::get_bool(block_props, "ReadOnly").unwrap_or(false);
+
+            if hint_system || hint_ignore || !hint_partitionable || read_only {
                 continue;
             }
 
-            let drive_path = Self::get_object_path(block_props, "Drive").unwrap_or_default();
-            let is_removable = drive_cache
-                .get(&drive_path)
-                .copied()
-                .unwrap_or(false);
+            let drive_object_path =
+                Self::get_object_path(block_props, "Drive").unwrap_or_default();
+            let drive_meta = drive_cache.get(&drive_object_path);
 
+            let is_removable = drive_meta.map(|m| m.removable).unwrap_or(false);
             if !is_removable {
                 continue;
             }
 
+            let model = drive_meta.and_then(|m| m.model.clone());
             let size = Self::get_u64(block_props, "Size").unwrap_or(0);
             let id_label = Self::get_str(block_props, "IdLabel");
             let id_type = Self::get_str(block_props, "IdType");
             let device = Self::get_byte_array_as_path(block_props, "PreferredDevice")
                 .or_else(|| Self::get_byte_array_as_path(block_props, "Device"))
                 .unwrap_or_else(|| PathBuf::from("/dev/unknown"));
-            let mount_points = interfaces
-                .get(FILESYSTEM_INTERFACE)
-                .map_or(Vec::new(), |_| Vec::new());
 
             let path_name = device
                 .file_name()
@@ -91,89 +96,59 @@ impl UDisksService {
                 .unwrap_or("unknown")
                 .to_string();
 
-            let drive = Drive {
+            drives.push(Drive {
                 path: path_name,
                 device_path: device,
                 size,
                 label: id_label,
+                model,
                 id_type,
                 is_removable,
-                mount_points,
+                mount_points: Vec::new(),
                 object_path: path_str.to_string(),
-            };
-
-            let is_partition = interfaces.contains_key(PARTITION_INTERFACE);
-            if is_partition {
-                partitions_by_drive
-                    .entry(drive_path.clone())
-                    .or_default()
-                    .push(drive);
-            } else {
-                whole_disks_by_drive
-                    .entry(drive_path)
-                    .or_default()
-                    .push(drive);
-            }
-        }
-
-        let mut drives = Vec::new();
-        for partitions in partitions_by_drive.values() {
-            drives.extend(partitions.clone());
-        }
-        for (drive_path, whole_disks) in &whole_disks_by_drive {
-            if !partitions_by_drive.contains_key(drive_path) {
-                drives.extend(whole_disks.clone());
-            }
+                drive_object_path: drive_object_path.clone(),
+            });
         }
 
         drives.sort_by(|a, b| a.path.cmp(&b.path));
         Ok(drives)
     }
 
-    /**
-     * Extrai os dispositivos removíveis.
-     */
-    fn extract_drives(managed: &ManagedObjects) -> HashMap<String, bool> {
+    fn extract_drive_meta(managed: &ManagedObjects) -> HashMap<String, DriveMeta> {
         let mut cache = HashMap::new();
         for (path, interfaces) in managed {
-            if path.as_str().contains("drives/") {
-                if let Some(props) = interfaces.get(DRIVE_INTERFACE) {
-                    let removable = Self::get_bool(props, "Removable").unwrap_or(false);
-                    cache.insert(path.as_str().to_string(), removable);
-                }
+            if !path.as_str().contains("drives/") {
+                continue;
             }
+            let Some(props) = interfaces.get(DRIVE_INTERFACE) else {
+                continue;
+            };
+            let removable = Self::get_bool(props, "Removable").unwrap_or(false);
+            let vendor = Self::get_str(props, "Vendor").unwrap_or_default();
+            let model_name = Self::get_str(props, "Model").unwrap_or_default();
+            let model = combine_vendor_model(&vendor, &model_name);
+            cache.insert(
+                path.as_str().to_string(),
+                DriveMeta { removable, model },
+            );
         }
         cache
     }
 
-    /**
-     * Retorna o valor booleano.
-     */
     fn get_bool(props: &HashMap<String, OwnedValue>, key: &str) -> Option<bool> {
         props.get(key).and_then(|v| bool::try_from(v).ok())
     }
 
-    /**
-     * Retorna o valor inteiro.
-     */
     fn get_u64(props: &HashMap<String, OwnedValue>, key: &str) -> Option<u64> {
-        props.get(key).and_then(|v| {
-            u64::try_from(v).ok()
-        })
+        props.get(key).and_then(|v| u64::try_from(v).ok())
     }
 
-    /**
-     * Retorna o valor string.
-     */
     fn get_str(props: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
-        props.get(key).and_then(|v| {
-            <&str>::try_from(v).ok().map(|s| s.to_string())
-        })
+        props
+            .get(key)
+            .and_then(|v| <&str>::try_from(v).ok().map(|s| s.to_string()))
     }
 
-    /**
-     * Retorna o valor objeto path.
-     */
     fn get_object_path(props: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
         props.get(key).and_then(|v| {
             <&zbus::zvariant::ObjectPath<'_>>::try_from(v)
@@ -182,14 +157,12 @@ impl UDisksService {
         })
     }
 
-    /**
-     * Retorna o valor byte array como path.
-     */
     fn get_byte_array_as_path(props: &HashMap<String, OwnedValue>, key: &str) -> Option<PathBuf> {
         props.get(key).and_then(|v| {
             let value = v.downcast_ref::<zbus::zvariant::Value<'_>>();
             if let Ok(zbus::zvariant::Value::Array(array)) = value {
-                let bytes: std::result::Result<Vec<u8>, _> = array.try_clone()
+                let bytes: std::result::Result<Vec<u8>, _> = array
+                    .try_clone()
                     .ok()
                     .and_then(|a| a.try_into().ok())
                     .ok_or(());
@@ -204,5 +177,63 @@ impl UDisksService {
             }
             None
         })
+    }
+}
+
+/// Combina fabricante e modelo para exibição na lista de dispositivos.
+pub fn combine_vendor_model(vendor: &str, model: &str) -> Option<String> {
+    let vendor = vendor.trim();
+    let model = model.trim();
+    if vendor.is_empty() && model.is_empty() {
+        return None;
+    }
+    if vendor.is_empty() {
+        return Some(model.to_string());
+    }
+    if model.is_empty() {
+        return Some(vendor.to_string());
+    }
+    if model.starts_with(vendor) {
+        return Some(model.to_string());
+    }
+    Some(format!("{vendor} {model}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::combine_vendor_model;
+
+    #[test]
+    fn fabricante_e_modelo_vazios_retorna_none() {
+        assert_eq!(combine_vendor_model("", ""), None);
+        assert_eq!(combine_vendor_model("  ", "  "), None);
+    }
+
+    #[test]
+    fn so_fabricante_ou_so_modelo() {
+        assert_eq!(
+            combine_vendor_model("Kingston", ""),
+            Some("Kingston".to_string())
+        );
+        assert_eq!(
+            combine_vendor_model("", "DataTraveler 3.0"),
+            Some("DataTraveler 3.0".to_string())
+        );
+    }
+
+    #[test]
+    fn nao_duplica_fabricante_no_modelo() {
+        assert_eq!(
+            combine_vendor_model("SanDisk", "SanDisk Ultra"),
+            Some("SanDisk Ultra".to_string())
+        );
+    }
+
+    #[test]
+    fn junta_fabricante_e_modelo() {
+        assert_eq!(
+            combine_vendor_model("Kingston", "DataTraveler 3.0"),
+            Some("Kingston DataTraveler 3.0".to_string())
+        );
     }
 }

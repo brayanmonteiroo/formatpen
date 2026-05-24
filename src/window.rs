@@ -148,8 +148,10 @@ impl Window {
                     Some(&wc),
                     Some("Confirmar formatação"),
                     Some(&format!(
-                        "Todos os dados em {} serão apagados permanentemente. Deseja continuar?",
-                        drive.display_name()
+                        "Todos os dados em {} ({}) serão apagados permanentemente. \
+                         O dispositivo será reparticionado com uma única partição. Deseja continuar?",
+                        drive.display_name(),
+                        drive.device_path.display()
                     )),
                 );
                 dialog.add_response("cancel", "Cancelar");
@@ -158,6 +160,7 @@ impl Window {
                 dialog.set_close_response("cancel");
 
                 let object_path = drive.object_path.clone();
+                let drive_object_path = drive.drive_object_path.clone();
                 let fs_type = ff.get_fs_type();
 
                 let dl2 = dl.clone();
@@ -173,6 +176,7 @@ impl Window {
                     ff2.set_sensitive(false);
 
                     let obj_path = object_path.clone();
+                    let drive_obj_path = drive_object_path.clone();
                     let label_clone = label.clone();
                     let dl3 = dl2.clone();
                     let ff3 = ff2.clone();
@@ -180,7 +184,12 @@ impl Window {
 
                     glib::spawn_future_local(async move {
                         let result = gio::spawn_blocking(move || {
-                            FormatService::format(&obj_path, fs_type, label_clone.as_deref())
+                            FormatService::format(
+                                &obj_path,
+                                &drive_obj_path,
+                                fs_type,
+                                label_clone.as_deref(),
+                            )
                         })
                         .await;
 
@@ -193,10 +202,13 @@ impl Window {
                                     libadwaita::Toast::new("Formatação concluída com sucesso");
                                 toc3.add_toast(toast);
                             }
-                            Ok(Err(_)) => {
-                                let toast = toast_long_message(
-                                    "Não foi possível formatar o dispositivo. Verifique se ele está em uso e tente novamente.",
+                            Ok(Err(e)) => {
+                                eprintln!("Erro ao formatar: {e:#}");
+                                let msg = format!(
+                                    "Falha na formatação: {e:#} \
+                                     Feche o Gerenciador de Partições (ou outro app que use o pendrive) e tente de novo."
                                 );
+                                let toast = toast_long_message(&msg);
                                 toc3.add_toast(toast);
                             }
                             Err(_) => {

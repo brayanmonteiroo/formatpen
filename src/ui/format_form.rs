@@ -1,20 +1,7 @@
+use crate::label_validation;
 use crate::services::FilesystemType;
 use gtk::prelude::*;
 use libadwaita::prelude::*;
-
-/// Caracteres que não podem ser usados no nome do volume em nenhum sistema de arquivos.
-const FORBIDDEN_LABEL_CHARS: &[char] = &['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
-
-/// Retorna os caracteres proibidos encontrados no texto.
-fn find_forbidden_chars(text: &str) -> Vec<char> {
-    let mut found: Vec<char> = text
-        .chars()
-        .filter(|c| FORBIDDEN_LABEL_CHARS.contains(c))
-        .collect();
-    found.sort();
-    found.dedup();
-    found
-}
 
 /**
  * O formulário de formatação é composto por um dropdown para selecionar o tipo de sistema de arquivos e um entry para o nome do volume.
@@ -104,44 +91,7 @@ impl FormatForm {
      * Valida caracteres proibidos e tamanho máximo.
      */
     pub fn validate_label(&self) -> Result<Option<String>, String> {
-        let text = self.label_entry.text().trim().to_string();
-        if text.is_empty() {
-            return Ok(None);
-        }
-
-        let forbidden = find_forbidden_chars(&text);
-        if !forbidden.is_empty() {
-            let chars_list: String = forbidden
-                .iter()
-                .map(|c| {
-                    let s = c.to_string();
-                    if *c == '\\' {
-                        "\\ (barra invertida)".to_string()
-                    } else if *c == '"' {
-                        "\" (aspas)".to_string()
-                    } else {
-                        format!("'{}'", s)
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            return Err(format!(
-                "O nome do volume não pode conter o(s) caractere(s): {}",
-                chars_list
-            ));
-        }
-
-        let fs_type = self.get_fs_type();
-        let max_len = fs_type.max_label_length() as usize;
-        if text.chars().count() > max_len {
-            return Err(format!(
-                "O nome do volume não pode ter mais de {} caracteres para {}.",
-                max_len,
-                fs_type.display_name()
-            ));
-        }
-
-        Ok(Some(text))
+        label_validation::validate_volume_label(&self.label_entry.text(), self.get_fs_type())
     }
 
     /**
