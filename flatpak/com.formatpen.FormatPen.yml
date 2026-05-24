@@ -1,5 +1,4 @@
-# Manifest Flatpak — FormatPen
-# Documentação: flatpak/README.md
+# Build local (sources: diretório pai). Ver README.md.
 
 id: com.formatpen.FormatPen
 runtime: org.gnome.Platform

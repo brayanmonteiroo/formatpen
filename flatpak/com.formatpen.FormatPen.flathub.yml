@@ -1,5 +1,4 @@
-# Manifest para o repositório flathub/com.formatpen.FormatPen
-# Teste local: scripts/prepare-flathub-submission.sh && cd ~/flathub-formatpen && flatpak-builder ...
+# Modelo para flathub/com.formatpen.FormatPen (build offline, ver README).
 
 id: com.formatpen.FormatPen
 runtime: org.gnome.Platform
