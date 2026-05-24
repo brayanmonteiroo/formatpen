@@ -34,6 +34,20 @@ sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc
 # dosfstools (FAT32), exfatprogs (exFAT), ntfs-3g (NTFS), e2fsprogs (ext4), parted
 ```
 
+## Flatpak
+
+Guia passo a passo (Fedora + KDE): **[flatpak/GUIA-FEDORA-KDE.md](flatpak/GUIA-FEDORA-KDE.md)**.
+
+Empacotamento em [`flatpak/`](flatpak/), detalhes em [`flatpak/README.md`](flatpak/README.md) e publicação na Flathub em [`flatpak/FLATHUB.md`](flatpak/FLATHUB.md).
+
+```bash
+chmod +x scripts/build-flatpak.sh
+./scripts/build-flatpak.sh
+flatpak run com.formatpen.FormatPen
+```
+
+Requisitos no sistema: `flatpak`, `flatpak-builder`, runtime GNOME 50 (ou `export FLATPAK_RUNTIME_VERSION=49` antes do build).
+
 ## Compilação e execução
 
 ```bash
@@ -86,8 +100,13 @@ FormatPen/
 │   └── ui/
 │       ├── drive_list.rs
 │       └── format_form.rs
+├── flatpak/
+│   └── com.formatpen.FormatPen.yml
+├── scripts/
+│   └── build-flatpak.sh
 └── data/
-    └── com.formatpen.FormatPen.desktop
+    ├── com.formatpen.FormatPen.desktop
+    └── com.formatpen.FormatPen.metainfo.xml
 ```
 
 ## Licença

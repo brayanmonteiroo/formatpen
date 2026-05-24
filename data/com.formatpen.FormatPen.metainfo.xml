@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.formatpen.FormatPen</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>FormatPen</name>
+  <summary>Formatador de pendrive para Linux</summary>
+  <description>
+    <p>
+      FormatPen formata pendrives e outros dispositivos removíveis com interface
+      gráfica simples. Lista o disco inteiro (não partições soltas), permite
+      escolher FAT32, exFAT, NTFS ou ext4 e reparticiona em uma única partição.
+    </p>
+    <p>
+      A formatação usa UDisks2 e Polkit no sistema — é necessário ter permissão
+      de administrador quando solicitado.
+    </p>
+  </description>
+  <launchable type="desktop-id">com.formatpen.FormatPen.desktop</launchable>
+  <url type="homepage">https://github.com/brayanmonteiroo/formatpen</url>
+  <url type="bugtracker">https://github.com/brayanmonteiroo/formatpen/issues</url>
+  <url type="vcs-browser">https://github.com/brayanmonteiroo/formatpen</url>
+  <developer id="com.formatpen.FormatPen">
+    <name>Brayan Monteiro</name>
+  </developer>
+  <categories>
+    <category>Utility</category>
+    <category>System</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-05-24">
+      <description>
+        <p>Primeira versão estável: formatação do disco inteiro com FAT32, exFAT, NTFS e ext4.</p>
+      </description>
+    </release>
+  </releases>
+</component>

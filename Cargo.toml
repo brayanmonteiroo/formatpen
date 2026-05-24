@@ -1,9 +1,10 @@
 [package]
 name = "formatpen"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 description = "Formatador de pendrive com interface GTK4"
 authors = ["FormatPen"]
+license = "MIT"
 
 [lib]
 name = "formatpen"
