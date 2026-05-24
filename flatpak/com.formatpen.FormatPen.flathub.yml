@@ -1,6 +1,5 @@
-# Modelo para o repositório flathub/com.formatpen.FormatPen
-# Copie para lá como com.formatpen.FormatPen.yml e preencha o commit.
-# Gere cargo-sources.json com flatpak-cargo-generator (ver FLATHUB.md).
+# Manifest para o repositório flathub/com.formatpen.FormatPen
+# Teste local: scripts/prepare-flathub-submission.sh && cd ~/flathub-formatpen && flatpak-builder ...
 
 id: com.formatpen.FormatPen
 runtime: org.gnome.Platform
@@ -39,7 +38,6 @@ modules:
     sources:
       - type: git
         url: https://github.com/brayanmonteiroo/formatpen.git
-        tag: v1.0.0
-        commit: COMMIT_DA_TAG_v1_0_0
-      # Inclua no mesmo nível as entradas do JSON gerado por flatpak-cargo-generator
-      # (copie cada objeto do array de cargo-sources.json para esta lista sources)
+        tag: v1.0.2
+        commit: c1014ea0529634d68dea5131abac3e27064ebe28
+      - cargo-sources.json

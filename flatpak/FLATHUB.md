@@ -73,6 +73,14 @@ No GitHub: **Releases → Create a new release** → escolha a tag `v1.0.0`, tí
 
 ---
 
+## Issue na Flathub
+
+Modelo em inglês: [`ISSUE-FLATHUB-template.md`](ISSUE-FLATHUB-template.md). Título sugerido: `Add com.formatpen.FormatPen`.
+
+Metainfo e `.desktop` incluem **inglês** (padrão) e **pt_BR** (`xml:lang` / `Comment[pt_BR]`).
+
+---
+
 ## Parte 2 — Requisitos Flathub (checklist)
 
 Antes do pedido, confira:
@@ -87,6 +95,23 @@ Antes do pedido, confira:
 - [ ] App funciona instalado via Flatpak local (você já validou)
 
 Permissões atuais (UDisks2 + Polkit + `filesystem=host`) são esperadas para formatador de disco; a revisão Flathub pode pedir justificativa por escrito no PR.
+
+---
+
+## Atalho: preparar pasta `~/flathub-formatpen`
+
+Depois de gerar `cargo-sources.json` na raiz do projeto:
+
+```bash
+./scripts/prepare-flathub-submission.sh
+cd ~/flathub-formatpen
+flatpak-builder --force-clean --install-deps-from=flathub \
+  _build com.formatpen.FormatPen.yml
+```
+
+Use **sem** `--user` se o remoto local `formatpen-local` impedir o Flathub de resolver dependências.
+
+O manifest atualizado está em `flatpak/com.formatpen.FormatPen.flathub.yml` (tag `v1.0.1`, commit fixo).
 
 ---
 

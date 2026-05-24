@@ -4,14 +4,25 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>FormatPen</name>
-  <summary>Formatador de pendrive para Linux</summary>
+  <summary>USB drive formatter for Linux</summary>
+  <summary xml:lang="pt_BR">Formatador de pendrive para Linux</summary>
   <description>
     <p>
-      FormatPen formata pendrives e outros dispositivos removíveis com interface
+      FormatPen formats USB drives and other removable devices with a simple
+      graphical interface. It lists the whole disk (not individual partitions),
+      lets you choose FAT32, exFAT, NTFS, or ext4, and repartitions into a
+      single partition.
+    </p>
+    <p>
+      Formatting uses UDisks2 and Polkit on the host system — administrator
+      permission is required when prompted.
+    </p>
+    <p xml:lang="pt_BR">
+      O FormatPen formata pendrives e outros dispositivos removíveis com interface
       gráfica simples. Lista o disco inteiro (não partições soltas), permite
       escolher FAT32, exFAT, NTFS ou ext4 e reparticiona em uma única partição.
     </p>
-    <p>
+    <p xml:lang="pt_BR">
       A formatação usa UDisks2 e Polkit no sistema — é necessário ter permissão
       de administrador quando solicitado.
     </p>
@@ -20,7 +31,7 @@
   <url type="homepage">https://github.com/brayanmonteiroo/formatpen</url>
   <url type="bugtracker">https://github.com/brayanmonteiroo/formatpen/issues</url>
   <url type="vcs-browser">https://github.com/brayanmonteiroo/formatpen</url>
-  <developer id="com.formatpen.FormatPen">
+  <developer id="io.github.brayanmonteiroo.formatpen">
     <name>Brayan Monteiro</name>
   </developer>
   <categories>
@@ -28,16 +39,24 @@
     <category>System</category>
   </categories>
   <content_rating type="oars-1.1"/>
-    <screenshots>
+  <screenshots>
     <screenshot type="default">
-      <caption>Tela principal do FormatPen</caption>
-      <image>https://raw.githubusercontent.com/brayanmonteiroo/formatpen/v1.0.1/flatpak/screenshots/main.png</image>
+      <caption>FormatPen main window</caption>
+      <caption xml:lang="pt_BR">Tela principal do FormatPen</caption>
+      <image>https://raw.githubusercontent.com/brayanmonteiroo/formatpen/v1.0.2/flatpak/screenshots/main.png</image>
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.0.2" date="2026-05-24">
+      <description>
+        <p>English and Brazilian Portuguese metadata for Flathub; updated developer ID.</p>
+        <p xml:lang="pt_BR">Metadados em inglês e português (Brasil) para a Flathub; ID do desenvolvedor atualizado.</p>
+      </description>
+    </release>
     <release version="1.0.1" date="2026-05-24">
       <description>
-        <p>Primeira versão estável: formatação do disco inteiro com FAT32, exFAT, NTFS e ext4.</p>
+        <p>First stable release: whole-disk formatting with FAT32, exFAT, NTFS, and ext4.</p>
+        <p xml:lang="pt_BR">Primeira versão estável: formatação do disco inteiro com FAT32, exFAT, NTFS e ext4.</p>
       </description>
     </release>
   </releases>

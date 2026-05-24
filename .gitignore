@@ -3,6 +3,7 @@
 /flatpak/.flatpak-builder
 /flatpak/repo
 /flatpak/*.flatpak
+/cargo-sources.json
 
 # IDEs / editores
 .idea/
