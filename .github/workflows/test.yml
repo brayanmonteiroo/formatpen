@@ -11,6 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Instalar dependências de build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
       - run: cargo test --lib
 
   integration:
@@ -18,14 +22,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Instalar e iniciar UDisks2 e D-Bus
+      - name: Instalar dependências e iniciar UDisks2
         run: |
           sudo apt-get update
-          sudo apt-get install -y udisks2 polkitd dbus
+          sudo apt-get install -y \
+            libgtk-4-dev libadwaita-1-dev \
+            udisks2 polkitd dbus
+          sudo tee /etc/polkit-1/rules.d/99-udisks-ci.rules <<'EOF'
+          polkit.addRule(function(action, subject) {
+              if (action.id.indexOf("org.freedesktop.UDisks2") == 0) {
+                  return polkit.Result.YES;
+              }
+          });
+          EOF
           sudo systemctl start dbus
+          sudo systemctl start polkit 2>/dev/null || sudo systemctl start polkitd
           sudo systemctl start udisks2
           for i in $(seq 1 30); do
-            if busctl --system list 2>/dev/null | grep -q UDisks2; then
+            if busctl --system call org.freedesktop.DBus /org/freedesktop/DBus \
+                org.freedesktop.DBus NameHasOwner s org.freedesktop.UDisks2 2>/dev/null \
+                | grep -q "true"; then
               echo "UDisks2 disponível no D-Bus"
               exit 0
             fi
