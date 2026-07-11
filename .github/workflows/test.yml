@@ -2,6 +2,7 @@ name: Test
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
@@ -17,10 +18,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Instalar UDisks2 e D-Bus
+      - name: Instalar e iniciar UDisks2 e D-Bus
         run: |
           sudo apt-get update
           sudo apt-get install -y udisks2 polkitd dbus
+          sudo systemctl start dbus
+          sudo systemctl start udisks2
+          for i in $(seq 1 30); do
+            if busctl --system list 2>/dev/null | grep -q UDisks2; then
+              echo "UDisks2 disponível no D-Bus"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "UDisks2 não respondeu a tempo" >&2
+          busctl --system list || true
+          exit 1
       - run: cargo test --test udisks_integration
 
   ui:
