@@ -1,5 +1,22 @@
 use crate::window;
 use gtk::prelude::*;
+use std::path::PathBuf;
+
+fn icon_search_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    if let Ok(appimage) = std::env::var("APPIMAGE") {
+        if let Some(parent) = PathBuf::from(appimage).parent() {
+            paths.push(parent.join("usr/share/icons"));
+        }
+    }
+
+    paths.push(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/icons"),
+    );
+
+    paths
+}
 
 /**
  * Implementação da aplicação.
@@ -22,11 +39,12 @@ impl App {
         );
 
         app.connect_activate(|app| {
-            let icons_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("data/icons");
-            if icons_dir.exists() {
-                if let Some(display) = gtk::gdk::Display::default() {
-                    let theme = gtk::IconTheme::for_display(&display);
-                    theme.add_search_path(icons_dir);
+            if let Some(display) = gtk::gdk::Display::default() {
+                let theme = gtk::IconTheme::for_display(&display);
+                for icons_dir in icon_search_paths() {
+                    if icons_dir.exists() {
+                        theme.add_search_path(icons_dir);
+                    }
                 }
             }
             let window = window::Window::new(app);

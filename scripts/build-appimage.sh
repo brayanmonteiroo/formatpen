@@ -14,7 +14,8 @@ OUTPUT="$ROOT/FormatPen-${VERSION}-x86_64.AppImage"
 APPIMAGETOOL="${APPIMAGETOOL:-$ROOT/appimagetool}"
 
 DESKTOP="$ROOT/data/${APP_ID}.desktop"
-ICON="$ROOT/data/icons/hicolor/scalable/apps/${APP_ID}.svg"
+ICONS="$ROOT/data/icons/hicolor"
+ICON="$ICONS/scalable/apps/${APP_ID}.svg"
 
 if [[ ! -f "$DESKTOP" ]]; then
   echo "Erro: desktop file não encontrado: $DESKTOP" >&2
@@ -42,15 +43,15 @@ rm -rf "$APPDIR"
 mkdir -p \
   "$APPDIR/usr/bin" \
   "$APPDIR/usr/share/applications" \
-  "$APPDIR/usr/share/icons/hicolor/scalable/apps"
+  "$APPDIR/usr/share/icons"
 
 cp "$BINARY_PATH" "$APPDIR/usr/bin/"
 cp "$DESKTOP" "$APPDIR/usr/share/applications/"
-cp "$ICON" "$APPDIR/usr/share/icons/hicolor/scalable/apps/"
+cp -r "$ICONS" "$APPDIR/usr/share/icons/"
 
 ln -sf "usr/share/applications/${APP_ID}.desktop" "$APPDIR/${APP_ID}.desktop"
 ln -sf "usr/share/icons/hicolor/scalable/apps/${APP_ID}.svg" "$APPDIR/${APP_ID}.svg"
-ln -sf "usr/share/icons/hicolor/scalable/apps/${APP_ID}.svg" "$APPDIR/.DirIcon"
+ln -sf "usr/share/icons/hicolor/512x512/apps/${APP_ID}.png" "$APPDIR/.DirIcon"
 
 cat > "$APPDIR/AppRun" << 'EOF'
 #!/bin/bash

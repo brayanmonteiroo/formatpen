@@ -169,7 +169,9 @@ FormatPen/
 │       └── format_form.rs
 ├── data/
 │   ├── com.formatpen.FormatPen.desktop
-│   └── icons/hicolor/scalable/apps/com.formatpen.FormatPen.svg
+│   └── icons/hicolor/
+│       ├── scalable/apps/com.formatpen.FormatPen.svg
+│       └── {48x48,128x128,256x256,512x512}/apps/com.formatpen.FormatPen.png
 └── scripts/
     └── build-appimage.sh
 ```
