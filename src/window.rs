@@ -1,4 +1,5 @@
 use crate::environment::{self, DriveRefreshOutcome};
+use crate::format_errors;
 use crate::models::Drive;
 use crate::services::FormatService;
 use crate::ui::{DriveList, FormatForm};
@@ -274,13 +275,15 @@ impl Window {
                             }
                             Ok(Err(e)) => {
                                 eprintln!("Erro ao formatar: {e:#}");
-                                let hint = environment::install_hint_for_host();
-                                let msg = format!(
-                                    "Falha na formatação: {e:#}\n\n\
-                                     Feche apps que usem o pendrive e tente de novo. \
-                                     Se faltar ferramentas no sistema:\n{}:\n{}",
-                                    hint.label, hint.command
-                                );
+                                let user_msg = format_errors::user_message_for_format_error(&e);
+                                let mut msg = user_msg.message;
+                                if user_msg.show_install_hint {
+                                    let hint = environment::install_hint_for_host();
+                                    msg.push_str(&format!(
+                                        "\n\n{}:\n{}",
+                                        hint.label, hint.command
+                                    ));
+                                }
                                 let toast = toast_long_message(&msg);
                                 toc3.add_toast(toast);
                             }

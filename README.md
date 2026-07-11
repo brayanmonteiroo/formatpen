@@ -7,7 +7,7 @@ Formatador de pendrive com interface gráfica GTK4/Libadwaita para Linux.
 - Lista dispositivos removíveis (pendrives) conectados — **o disco inteiro** (`/dev/sdd`), não partições individuais
 - Seleção do dispositivo a formatar
 - Escolha do tipo de sistema de arquivos: FAT32, exFAT, NTFS, ext4
-- Definição do nome (label) do volume
+- Definição do nome (label) do volume — **FAT32 e exFAT: até 11 caracteres**; NTFS: 32; ext4: 16
 - Formatação via UDisks2 (Polkit) — sem necessidade de rodar como root
 - Reparticiona o disco inteiro em **uma única partição** (remove layouts multiboot: Ventoy, ISO híbrida, etc.)
 - Diálogo de confirmação antes de formatar

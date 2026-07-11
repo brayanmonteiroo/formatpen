@@ -9,8 +9,10 @@ use libadwaita::prelude::*;
 #[derive(Clone)]
 pub struct FormatForm {
     pub widget: gtk::Box,
-    pub fs_type_dropdown: gtk::DropDown,
+    fs_type_dropdown: gtk::DropDown,
     pub label_entry: gtk::Entry,
+    #[allow(dead_code)]
+    label_hint: gtk::Label,
     pub format_button: gtk::Button,
 }
 
@@ -18,9 +20,8 @@ pub struct FormatForm {
  * Implementação do formulário de formatação.
  */
 impl FormatForm {
-
     /**
-     * Cria uma nova instância do formulário de formatação. O dropdown é preenchido com os tipos de sistema de arquivos suportados e o entry é limitado a 11 caracteres (FAT32 é o padrão).
+     * Cria uma nova instância do formulário de formatação.
      */
     pub fn new() -> Self {
         let main_box = gtk::Box::new(gtk::Orientation::Vertical, 12);
@@ -41,21 +42,34 @@ impl FormatForm {
         let label_group = libadwaita::PreferencesGroup::new();
         label_group.set_title("Nome do volume");
         let entry = gtk::Entry::new();
-        entry.set_placeholder_text(Some("Ex: Meu Pendrive"));
+        entry.set_placeholder_text(Some("Ex: MeuPen"));
         entry.set_hexpand(true);
-        entry.set_max_length(11); // FAT32 é o padrão (índice 0)
+        entry.set_max_length(FilesystemType::Fat32.max_label_length() as i32);
         label_group.add(&entry);
+
+        let label_hint = gtk::Label::new(None);
+        label_hint.set_xalign(0.0);
+        label_hint.add_css_class("dim-label");
+        label_hint.set_margin_top(4);
+        label_hint.set_text(&label_validation::label_hint_for(FilesystemType::Fat32));
+        label_group.add(&label_hint);
+
         main_box.append(&label_group);
 
         {
             let entry_clone = entry.clone();
+            let hint_clone = label_hint.clone();
             dropdown.connect_selected_item_notify(move |dd| {
                 let idx = dd.selected();
                 let fs = FilesystemType::all()
                     .get(idx as usize)
                     .copied()
                     .unwrap_or(FilesystemType::Fat32);
+
                 entry_clone.set_max_length(fs.max_label_length() as i32);
+                let truncated = label_validation::truncate_to_max(&entry_clone.text(), fs);
+                entry_clone.set_text(&truncated);
+                hint_clone.set_text(&label_validation::label_hint_for(fs));
             });
         }
 
@@ -71,6 +85,7 @@ impl FormatForm {
             widget: main_box,
             fs_type_dropdown: dropdown,
             label_entry: entry,
+            label_hint,
             format_button: format_btn,
         }
     }

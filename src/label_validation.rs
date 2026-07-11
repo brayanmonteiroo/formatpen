@@ -57,6 +57,21 @@ pub fn validate_volume_label(
     Ok(Some(text.to_string()))
 }
 
+/// Trunca o texto ao limite do sistema de arquivos (por contagem de caracteres Unicode).
+pub fn truncate_to_max(text: &str, fs_type: FilesystemType) -> String {
+    let max_len = fs_type.max_label_length() as usize;
+    text.chars().take(max_len).collect()
+}
+
+/// Texto de ajuda exibido abaixo do campo de nome do volume.
+pub fn label_hint_for(fs_type: FilesystemType) -> String {
+    format!(
+        "Máximo {} caracteres ({})",
+        fs_type.max_label_length(),
+        fs_type.display_name()
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,11 +110,27 @@ mod tests {
     }
 
     #[test]
-    fn exfat_limite_15_caracteres() {
-        let ok = "a".repeat(15);
-        let long = "a".repeat(16);
+    fn exfat_limite_11_caracteres() {
+        let ok = "a".repeat(11);
+        let long = "a".repeat(12);
         assert!(validate_volume_label(&ok, FilesystemType::ExFat).is_ok());
         assert!(validate_volume_label(&long, FilesystemType::ExFat).is_err());
+    }
+
+    #[test]
+    fn fat32_e_exfat_compartilham_limite_11() {
+        assert_eq!(
+            FilesystemType::Fat32.max_label_length(),
+            FilesystemType::ExFat.max_label_length()
+        );
+    }
+
+    #[test]
+    fn truncate_to_max_respeita_limite() {
+        assert_eq!(
+            truncate_to_max("123456789012", FilesystemType::ExFat),
+            "12345678901"
+        );
     }
 
     #[test]

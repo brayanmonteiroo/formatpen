@@ -56,7 +56,7 @@ impl FilesystemType {
     pub fn max_label_length(&self) -> u32 {
         match self {
             Self::Fat32 => 11,
-            Self::ExFat => 15,
+            Self::ExFat => 11,
             Self::Ntfs => 32,
             Self::Ext4 => 16,
         }
