@@ -304,6 +304,16 @@ impl Window {
         clamp.set_child(Some(&scroll));
         toast_overlay.set_child(Some(&clamp));
         main_box.append(&toast_overlay);
+
+        let version_label = gtk::Label::new(None);
+        version_label.set_text(&format!("v{}", env!("CARGO_PKG_VERSION")));
+        version_label.add_css_class("dim-label");
+        version_label.set_widget_name("formatpen-version-label");
+        version_label.set_margin_top(4);
+        version_label.set_margin_bottom(8);
+        version_label.set_halign(gtk::Align::Center);
+        main_box.append(&version_label);
+
         window.set_content(Some(&main_box));
 
         Self { inner: window }
