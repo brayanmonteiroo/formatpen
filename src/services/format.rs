@@ -99,14 +99,6 @@ impl FormatService {
             .context("Falha ao ler resposta do UDisks2")
     }
 
-    fn get_object_path(props: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
-        props.get(key).and_then(|v| {
-            <&zbus::zvariant::ObjectPath<'_>>::try_from(v)
-                .ok()
-                .map(|p| p.as_str().to_string())
-        })
-    }
-
     fn unmount_if_needed(connection: &Connection, object_path: &str) {
         let mut options: HashMap<String, Value> = HashMap::new();
         options.insert("force".to_string(), Value::from(true));
@@ -123,23 +115,7 @@ impl FormatService {
         managed: &ManagedObjects,
         drive_object_path: &str,
     ) -> Vec<String> {
-        let mut paths = Vec::new();
-        for (path, interfaces) in managed {
-            if !interfaces.contains_key(PARTITION_INTERFACE) {
-                continue;
-            }
-            let Some(block_props) = interfaces.get(BLOCK_INTERFACE) else {
-                continue;
-            };
-            let Some(block_drive) = Self::get_object_path(block_props, "Drive") else {
-                continue;
-            };
-            if block_drive == drive_object_path {
-                paths.push(path.as_str().to_string());
-            }
-        }
-        paths.sort();
-        paths
+        partition_paths_for_drive(managed, drive_object_path)
     }
 
     fn unmount_all_partitions(
@@ -161,7 +137,7 @@ impl FormatService {
         options.insert("tear-down".to_string(), Value::from(true));
 
         let mut paths = Self::partition_paths_for_drive(managed, drive_object_path);
-        paths.sort_by(|a, b| b.cmp(a));
+        paths = partition_delete_order(&paths);
 
         for path in paths {
             let _ = connection.call_method(
@@ -256,9 +232,49 @@ impl FormatService {
     }
 }
 
+/// Partições UDisks2 associadas a um drive (testável com fixtures).
+pub(crate) fn partition_paths_for_drive(
+    managed: &ManagedObjects,
+    drive_object_path: &str,
+) -> Vec<String> {
+    let mut paths = Vec::new();
+    for (path, interfaces) in managed {
+        if !interfaces.contains_key(PARTITION_INTERFACE) {
+            continue;
+        }
+        let Some(block_props) = interfaces.get(BLOCK_INTERFACE) else {
+            continue;
+        };
+        let Some(block_drive) = get_object_path(block_props, "Drive") else {
+            continue;
+        };
+        if block_drive == drive_object_path {
+            paths.push(path.as_str().to_string());
+        }
+    }
+    paths.sort();
+    paths
+}
+
+/// Ordem de exclusão de partições (maior path primeiro).
+pub(crate) fn partition_delete_order(paths: &[String]) -> Vec<String> {
+    let mut ordered = paths.to_vec();
+    ordered.sort_by(|a, b| b.cmp(a));
+    ordered
+}
+
+fn get_object_path(props: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
+    props.get(key).and_then(|v| {
+        <&zbus::zvariant::ObjectPath<'_>>::try_from(v)
+            .ok()
+            .map(|p| p.as_str().to_string())
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{partition_name_for_create, FilesystemType};
+    use super::{partition_delete_order, partition_name_for_create, partition_paths_for_drive, FilesystemType};
+    use crate::test_support::removable_disk_with_partition;
 
     #[test]
     fn tipo_fs_mapeia_nome_udisks() {
@@ -295,5 +311,35 @@ mod tests {
             "dados"
         );
         assert_eq!(partition_name_for_create(FilesystemType::Ext4, None), "");
+    }
+
+    #[test]
+    fn partition_paths_for_drive_lista_particoes() {
+        let managed = removable_disk_with_partition();
+        let drive_path = "/org/freedesktop/UDisks2/drives/Kingston_xxx";
+        let paths = partition_paths_for_drive(&managed, drive_path);
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].contains("sde1"));
+    }
+
+    #[test]
+    fn partition_delete_order_reversa() {
+        let paths = vec![
+            "/org/freedesktop/UDisks2/block_devices/sde1".to_string(),
+            "/org/freedesktop/UDisks2/block_devices/sde2".to_string(),
+            "/org/freedesktop/UDisks2/block_devices/sde3".to_string(),
+        ];
+        let ordered = partition_delete_order(&paths);
+        assert_eq!(ordered[0], paths[2]);
+        assert_eq!(ordered[1], paths[1]);
+        assert_eq!(ordered[2], paths[0]);
+    }
+
+    #[test]
+    fn max_label_length_por_fs() {
+        assert_eq!(FilesystemType::Fat32.max_label_length(), 11);
+        assert_eq!(FilesystemType::ExFat.max_label_length(), 11);
+        assert_eq!(FilesystemType::Ntfs.max_label_length(), 32);
+        assert_eq!(FilesystemType::Ext4.max_label_length(), 16);
     }
 }

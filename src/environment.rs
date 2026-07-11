@@ -125,11 +125,36 @@ pub fn check_udisks_available() -> Result<(), RuntimeIssue> {
 }
 
 pub fn missing_format_tool_labels() -> Vec<&'static str> {
+    missing_format_tool_labels_with(command_exists)
+}
+
+pub(crate) fn missing_format_tool_labels_with<F>(command_exists: F) -> Vec<&'static str>
+where
+    F: Fn(&str) -> bool,
+{
     FORMAT_TOOLS
         .iter()
         .filter(|tool| !command_exists(tool.command))
         .map(|tool| tool.label)
         .collect()
+}
+
+pub(crate) fn format_tools_warning_message_with<F>(command_exists: F) -> Option<String>
+where
+    F: Fn(&str) -> bool,
+{
+    let missing = missing_format_tool_labels_with(command_exists);
+    if missing.is_empty() {
+        return None;
+    }
+
+    let hint = install_hint_for_host();
+    Some(format!(
+        "Ferramentas de formatação ausentes ({}) — a listagem funciona, mas formatar pode falhar.\n{}:\n{}",
+        missing.join(", "),
+        hint.label,
+        hint.command
+    ))
 }
 
 pub fn refresh_drives() -> DriveRefreshOutcome {
@@ -172,18 +197,7 @@ pub fn refresh_drives() -> DriveRefreshOutcome {
 }
 
 fn format_tools_warning_message() -> Option<String> {
-    let missing = missing_format_tool_labels();
-    if missing.is_empty() {
-        return None;
-    }
-
-    let hint = install_hint_for_host();
-    Some(format!(
-        "Ferramentas de formatação ausentes ({}) — a listagem funciona, mas formatar pode falhar.\n{}:\n{}",
-        missing.join(", "),
-        hint.label,
-        hint.command
-    ))
+    format_tools_warning_message_with(command_exists)
 }
 
 fn command_exists(command: &str) -> bool {
@@ -239,6 +253,29 @@ ID=fedora
         let hint = install_hint_for_distro(Some("debian"));
         assert!(hint.command.contains("policykit-1"));
         assert!(hint.command.contains("apt"));
+    }
+
+    #[test]
+    fn aviso_ferramentas_ausentes_com_mock() {
+        let msg = format_tools_warning_message_with(|cmd| cmd != "mkfs.exfat");
+        let warning = msg.expect("deve avisar sobre ferramentas ausentes");
+        assert!(warning.contains("exFAT"));
+        assert!(warning.contains("Ferramentas de formatação ausentes"));
+    }
+
+    #[test]
+    fn mock_sem_ferramentas_ausentes_retorna_none() {
+        assert!(format_tools_warning_message_with(|_| true).is_none());
+    }
+
+    #[test]
+    fn missing_format_tools_detecta_varias() {
+        let missing = missing_format_tool_labels_with(|cmd| {
+            matches!(cmd, "mkfs.vfat" | "parted")
+        });
+        assert!(missing.contains(&"exFAT"));
+        assert!(missing.contains(&"NTFS"));
+        assert!(!missing.contains(&"FAT32"));
     }
 
     #[test]

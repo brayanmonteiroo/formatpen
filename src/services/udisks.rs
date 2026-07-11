@@ -46,10 +46,15 @@ impl UDisksService {
             .deserialize()
             .context("Falha ao ler resposta do UDisks2")?;
 
-        let drive_cache = Self::extract_drive_meta(&managed);
+        Ok(drives_from_managed_objects(&managed))
+    }
+}
+
+fn drives_from_managed_objects(managed: &ManagedObjects) -> Vec<Drive> {
+        let drive_cache = extract_drive_meta(managed);
         let mut drives = Vec::new();
 
-        for (path, interfaces) in &managed {
+        for (path, interfaces) in managed {
             let path_str = path.as_str();
             if !path_str.contains("block_devices/") {
                 continue;
@@ -63,18 +68,17 @@ impl UDisksService {
                 continue;
             };
 
-            let hint_system = Self::get_bool(block_props, "HintSystem").unwrap_or(true);
-            let hint_ignore = Self::get_bool(block_props, "HintIgnore").unwrap_or(false);
+            let hint_system = get_bool(block_props, "HintSystem").unwrap_or(true);
+            let hint_ignore = get_bool(block_props, "HintIgnore").unwrap_or(false);
             let hint_partitionable =
-                Self::get_bool(block_props, "HintPartitionable").unwrap_or(false);
-            let read_only = Self::get_bool(block_props, "ReadOnly").unwrap_or(false);
+                get_bool(block_props, "HintPartitionable").unwrap_or(false);
+            let read_only = get_bool(block_props, "ReadOnly").unwrap_or(false);
 
             if hint_system || hint_ignore || !hint_partitionable || read_only {
                 continue;
             }
 
-            let drive_object_path =
-                Self::get_object_path(block_props, "Drive").unwrap_or_default();
+            let drive_object_path = get_object_path(block_props, "Drive").unwrap_or_default();
             let drive_meta = drive_cache.get(&drive_object_path);
 
             let is_removable = drive_meta.map(|m| m.removable).unwrap_or(false);
@@ -83,11 +87,11 @@ impl UDisksService {
             }
 
             let model = drive_meta.and_then(|m| m.model.clone());
-            let size = Self::get_u64(block_props, "Size").unwrap_or(0);
-            let id_label = Self::get_str(block_props, "IdLabel");
-            let id_type = Self::get_str(block_props, "IdType");
-            let device = Self::get_byte_array_as_path(block_props, "PreferredDevice")
-                .or_else(|| Self::get_byte_array_as_path(block_props, "Device"))
+            let size = get_u64(block_props, "Size").unwrap_or(0);
+            let id_label = get_str(block_props, "IdLabel");
+            let id_type = get_str(block_props, "IdType");
+            let device = get_byte_array_as_path(block_props, "PreferredDevice")
+                .or_else(|| get_byte_array_as_path(block_props, "Device"))
                 .unwrap_or_else(|| PathBuf::from("/dev/unknown"));
 
             let path_name = device
@@ -111,73 +115,72 @@ impl UDisksService {
         }
 
         drives.sort_by(|a, b| a.path.cmp(&b.path));
-        Ok(drives)
-    }
+        drives
+}
 
-    fn extract_drive_meta(managed: &ManagedObjects) -> HashMap<String, DriveMeta> {
-        let mut cache = HashMap::new();
-        for (path, interfaces) in managed {
-            if !path.as_str().contains("drives/") {
-                continue;
-            }
-            let Some(props) = interfaces.get(DRIVE_INTERFACE) else {
-                continue;
-            };
-            let removable = Self::get_bool(props, "Removable").unwrap_or(false);
-            let vendor = Self::get_str(props, "Vendor").unwrap_or_default();
-            let model_name = Self::get_str(props, "Model").unwrap_or_default();
-            let model = combine_vendor_model(&vendor, &model_name);
-            cache.insert(
-                path.as_str().to_string(),
-                DriveMeta { removable, model },
-            );
+fn extract_drive_meta(managed: &ManagedObjects) -> HashMap<String, DriveMeta> {
+    let mut cache = HashMap::new();
+    for (path, interfaces) in managed {
+        if !path.as_str().contains("drives/") {
+            continue;
         }
-        cache
+        let Some(props) = interfaces.get(DRIVE_INTERFACE) else {
+            continue;
+        };
+        let removable = get_bool(props, "Removable").unwrap_or(false);
+        let vendor = get_str(props, "Vendor").unwrap_or_default();
+        let model_name = get_str(props, "Model").unwrap_or_default();
+        let model = combine_vendor_model(&vendor, &model_name);
+        cache.insert(
+            path.as_str().to_string(),
+            DriveMeta { removable, model },
+        );
     }
+    cache
+}
 
-    fn get_bool(props: &HashMap<String, OwnedValue>, key: &str) -> Option<bool> {
-        props.get(key).and_then(|v| bool::try_from(v).ok())
-    }
+fn get_bool(props: &HashMap<String, OwnedValue>, key: &str) -> Option<bool> {
+    props.get(key).and_then(|v| bool::try_from(v).ok())
+}
 
-    fn get_u64(props: &HashMap<String, OwnedValue>, key: &str) -> Option<u64> {
-        props.get(key).and_then(|v| u64::try_from(v).ok())
-    }
+fn get_u64(props: &HashMap<String, OwnedValue>, key: &str) -> Option<u64> {
+    props.get(key).and_then(|v| u64::try_from(v).ok())
+}
 
-    fn get_str(props: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
-        props
-            .get(key)
-            .and_then(|v| <&str>::try_from(v).ok().map(|s| s.to_string()))
-    }
+fn get_str(props: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
+    props
+        .get(key)
+        .and_then(|v| <&str>::try_from(v).ok().map(|s| s.to_string()))
+}
 
-    fn get_object_path(props: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
-        props.get(key).and_then(|v| {
-            <&zbus::zvariant::ObjectPath<'_>>::try_from(v)
+fn get_object_path(props: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
+    props.get(key).and_then(|v| {
+        <&zbus::zvariant::ObjectPath<'_>>::try_from(v)
+            .ok()
+            .map(|p| p.as_str().to_string())
+    })
+}
+
+fn get_byte_array_as_path(props: &HashMap<String, OwnedValue>, key: &str) -> Option<PathBuf> {
+    props.get(key).and_then(|v| {
+        let value = v.downcast_ref::<zbus::zvariant::Value<'_>>();
+        if let Ok(zbus::zvariant::Value::Array(array)) = value {
+            let bytes: std::result::Result<Vec<u8>, _> = array
+                .try_clone()
                 .ok()
-                .map(|p| p.as_str().to_string())
-        })
-    }
-
-    fn get_byte_array_as_path(props: &HashMap<String, OwnedValue>, key: &str) -> Option<PathBuf> {
-        props.get(key).and_then(|v| {
-            let value = v.downcast_ref::<zbus::zvariant::Value<'_>>();
-            if let Ok(zbus::zvariant::Value::Array(array)) = value {
-                let bytes: std::result::Result<Vec<u8>, _> = array
-                    .try_clone()
-                    .ok()
-                    .and_then(|a| a.try_into().ok())
-                    .ok_or(());
-                if let Ok(bytes) = bytes {
-                    let trimmed = if bytes.last() == Some(&0) {
-                        &bytes[..bytes.len() - 1]
-                    } else {
-                        &bytes
-                    };
-                    return std::str::from_utf8(trimmed).ok().map(PathBuf::from);
-                }
+                .and_then(|a| a.try_into().ok())
+                .ok_or(());
+            if let Ok(bytes) = bytes {
+                let trimmed = if bytes.last() == Some(&0) {
+                    &bytes[..bytes.len() - 1]
+                } else {
+                    &bytes
+                };
+                return std::str::from_utf8(trimmed).ok().map(PathBuf::from);
             }
-            None
-        })
-    }
+        }
+        None
+    })
 }
 
 /// Combina fabricante e modelo para exibição na lista de dispositivos.
@@ -202,6 +205,12 @@ pub fn combine_vendor_model(vendor: &str, model: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::combine_vendor_model;
+    use super::drives_from_managed_objects;
+    use crate::test_support::{
+        fixed_internal_disk, hint_ignore_removable, hint_system_removable,
+        not_partitionable_removable, read_only_removable, removable_disk_with_partition,
+        removable_with_device_property, two_removable_disks,
+    };
 
     #[test]
     fn fabricante_e_modelo_vazios_retorna_none() {
@@ -234,6 +243,67 @@ mod tests {
         assert_eq!(
             combine_vendor_model("Kingston", "DataTraveler 3.0"),
             Some("Kingston DataTraveler 3.0".to_string())
+        );
+    }
+
+    #[test]
+    fn lista_apenas_disco_inteiro_nao_particao() {
+        let drives = drives_from_managed_objects(&removable_disk_with_partition());
+        assert_eq!(drives.len(), 1);
+        assert_eq!(drives[0].path, "sde");
+    }
+
+    #[test]
+    fn ignora_disco_interno_nao_removivel() {
+        let drives = drives_from_managed_objects(&fixed_internal_disk());
+        assert!(drives.is_empty());
+    }
+
+    #[test]
+    fn ignora_hint_system() {
+        let drives = drives_from_managed_objects(&hint_system_removable());
+        assert!(drives.is_empty());
+    }
+
+    #[test]
+    fn ignora_hint_ignore() {
+        let drives = drives_from_managed_objects(&hint_ignore_removable());
+        assert!(drives.is_empty());
+    }
+
+    #[test]
+    fn ignora_sem_hint_partitionable() {
+        let drives = drives_from_managed_objects(&not_partitionable_removable());
+        assert!(drives.is_empty());
+    }
+
+    #[test]
+    fn ignora_read_only() {
+        let drives = drives_from_managed_objects(&read_only_removable());
+        assert!(drives.is_empty());
+    }
+
+    #[test]
+    fn ordena_por_path() {
+        let drives = drives_from_managed_objects(&two_removable_disks());
+        assert_eq!(drives.len(), 2);
+        assert_eq!(drives[0].path, "sde");
+        assert_eq!(drives[1].path, "sdf");
+    }
+
+    #[test]
+    fn usa_device_quando_sem_preferred() {
+        let drives = drives_from_managed_objects(&removable_with_device_property());
+        assert_eq!(drives.len(), 1);
+        assert_eq!(drives[0].path, "sdz");
+    }
+
+    #[test]
+    fn extrai_modelo_do_drive() {
+        let drives = drives_from_managed_objects(&removable_disk_with_partition());
+        assert_eq!(
+            drives[0].model.as_deref(),
+            Some("Kingston DataTraveler 3.0")
         );
     }
 }

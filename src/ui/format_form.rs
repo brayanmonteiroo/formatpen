@@ -36,6 +36,7 @@ impl FormatForm {
         let model = gtk::StringList::new(&items);
         let dropdown = gtk::DropDown::new(Some(model), None::<gtk::Expression>);
         dropdown.set_selected(0);
+        dropdown.set_widget_name("formatpen-fs-dropdown");
         fs_group.add(&dropdown);
         main_box.append(&fs_group);
 
@@ -45,12 +46,14 @@ impl FormatForm {
         entry.set_placeholder_text(Some("Ex: MeuPen"));
         entry.set_hexpand(true);
         entry.set_max_length(FilesystemType::Fat32.max_label_length() as i32);
+        entry.set_widget_name("formatpen-label-entry");
         label_group.add(&entry);
 
         let label_hint = gtk::Label::new(None);
         label_hint.set_xalign(0.0);
         label_hint.add_css_class("dim-label");
         label_hint.set_margin_top(4);
+        label_hint.set_widget_name("formatpen-label-hint");
         label_hint.set_text(&label_validation::label_hint_for(FilesystemType::Fat32));
         label_group.add(&label_hint);
 
@@ -79,6 +82,7 @@ impl FormatForm {
         format_btn.set_hexpand(false);
         format_btn.set_halign(gtk::Align::Center);
         format_btn.set_margin_top(8);
+        format_btn.set_widget_name("formatpen-format-button");
         main_box.append(&format_btn);
 
         Self {

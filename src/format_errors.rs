@@ -16,6 +16,16 @@ pub fn user_message_for_format_error(error: &anyhow::Error) -> FormatUserMessage
         };
     }
 
+    if (chain.contains("label for vfat") && chain.contains("too long"))
+        || (chain.contains("label for fat") && chain.contains("too long"))
+    {
+        return FormatUserMessage {
+            message: "Nome longo demais para FAT32. Use no máximo 11 caracteres ou deixe vazio."
+                .to_string(),
+            show_install_hint: false,
+        };
+    }
+
     if chain.contains("not authorized") || chain.contains("notauthorized") {
         return FormatUserMessage {
             message: "Permissão negada. Confirme a senha de administrador quando o sistema pedir."
@@ -30,7 +40,7 @@ pub fn user_message_for_format_error(error: &anyhow::Error) -> FormatUserMessage
         || chain.contains("is busy")
     {
         return FormatUserMessage {
-            message: "Pendrive em uso. Feche o Dolphin, Gerenciador de Partições ou outros apps e tente de novo.".to_string(),
+            message: "Pendrive em uso. Feche gerenciadores de arquivos, o Gerenciador de Partições ou outros programas que estejam acessando o dispositivo e tente de novo.".to_string(),
             show_install_hint: false,
         };
     }
@@ -90,6 +100,8 @@ mod tests {
         let msg = user_message_for_format_error(&e);
         assert!(!msg.show_install_hint);
         assert!(msg.message.contains("em uso"));
+        assert!(msg.message.contains("gerenciadores de arquivos"));
+        assert!(!msg.message.to_lowercase().contains("dolphin"));
     }
 
     #[test]
@@ -98,6 +110,18 @@ mod tests {
         let msg = user_message_for_format_error(&e);
         assert!(msg.show_install_hint);
         assert!(msg.message.contains("Ferramenta"));
+    }
+
+    #[test]
+    fn mapeia_label_vfat_longa() {
+        let e = err_with_context(
+            "org.freedesktop.UDisks2.Error.Failed: Label for vfat filesystem is too long",
+            "Falha ao criar partição e formatar",
+        );
+        let msg = user_message_for_format_error(&e);
+        assert!(!msg.show_install_hint);
+        assert!(msg.message.contains("FAT32"));
+        assert!(msg.message.contains("11 caracteres"));
     }
 
     #[test]

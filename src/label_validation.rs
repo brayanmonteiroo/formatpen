@@ -140,4 +140,33 @@ mod tests {
         assert!(validate_volume_label(&ok, FilesystemType::Ext4).is_ok());
         assert!(validate_volume_label(&long, FilesystemType::Ext4).is_err());
     }
+
+    #[test]
+    fn truncate_unicode_por_caracteres_nao_bytes() {
+        let text = "ação1234567"; // 11 chars with ç and ã
+        assert_eq!(truncate_to_max(text, FilesystemType::Fat32), text);
+        let long = format!("{text}x");
+        assert_eq!(
+            truncate_to_max(&long, FilesystemType::Fat32).chars().count(),
+            11
+        );
+    }
+
+    #[test]
+    fn label_hint_para_cada_fs() {
+        assert!(label_hint_for(FilesystemType::Fat32).contains("FAT32"));
+        assert!(label_hint_for(FilesystemType::ExFat).contains("exFAT"));
+        assert!(label_hint_for(FilesystemType::Ntfs).contains("NTFS"));
+        assert!(label_hint_for(FilesystemType::Ext4).contains("ext4"));
+    }
+
+    #[test]
+    fn ntfs_limite_32_caracteres() {
+        let ok = "a".repeat(32);
+        let long = "a".repeat(33);
+        assert!(validate_volume_label(&ok, FilesystemType::Ntfs).is_ok());
+        let err = validate_volume_label(&long, FilesystemType::Ntfs).unwrap_err();
+        assert!(err.contains("32"));
+        assert!(err.contains("NTFS"));
+    }
 }

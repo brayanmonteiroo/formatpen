@@ -1,0 +1,37 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --lib
+
+  integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Instalar UDisks2 e D-Bus
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y udisks2 polkitd dbus
+      - run: cargo test --test udisks_integration
+
+  ui:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Instalar GTK4 e Libadwaita
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev xvfb
+      - uses: GabrielBB/xvfb-action@v1
+        with:
+          run: cargo test --test ui -- --test-threads=1

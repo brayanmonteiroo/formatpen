@@ -97,18 +97,33 @@ formatpen
 
 ## Testes
 
+| Tipo | Comando | O que cobre |
+|------|---------|-------------|
+| Unitários | `cargo test --lib` | Label, erros, environment, UDisks2 (fixtures), format helpers |
+| Integração UDisks2 | `cargo test --test udisks_integration` | Listagem real via D-Bus (não altera discos) |
+| UI GTK4 | `cargo test --test ui -- --test-threads=1` | `format_form`, `drive_list` com `#[gtk::test]` (requer display/Xvfb) |
+| Destrutivo (opt-in) | ver abaixo | Formatação real em pendrive |
+
 ```bash
-# Testes unitários (sem hardware, sem GTK em execução)
+# Testes unitários (rápidos, sem hardware, sem GTK em execução)
+cargo test --lib
+
+# Todos os testes unitários do pacote (inclui binários se houver)
 cargo test
 
 # Testes de integração com UDisks2 (só listagem; não altera discos)
 cargo test --test udisks_integration
+
+# Testes de interface GTK4 (single-threaded; use Xvfb em CI/headless)
+cargo test --test ui -- --test-threads=1
 
 # Formatação real em pendrive (APAGA DADOS — opcional)
 # export FORMATPEN_TEST_DISK=/org/freedesktop/UDisks2/block_devices/sdd
 # export FORMATPEN_TEST_DRIVE=/org/freedesktop/UDisks2/drives/...
 # cargo test --test udisks_integration formata_disco_de_teste_ponta_a_ponta -- --ignored --nocapture
 ```
+
+O workflow `.github/workflows/test.yml` executa unitários, integração UDisks2 e UI (Xvfb) em push e pull request.
 
 ## Estrutura do projeto
 

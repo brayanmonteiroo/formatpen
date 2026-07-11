@@ -30,6 +30,7 @@ impl DriveList {
 
         let model = gtk::StringList::new(&[] as &[&str]);
         let dropdown = gtk::DropDown::new(Some(model), None::<gtk::Expression>);
+        dropdown.set_widget_name("formatpen-drive-dropdown");
 
         group.add(&dropdown);
         container.append(&group);
@@ -39,6 +40,7 @@ impl DriveList {
         status_label.set_xalign(0.0);
         status_label.set_margin_top(8);
         status_label.add_css_class("dim-label");
+        status_label.set_widget_name("formatpen-drive-status");
         status_label.set_visible(false);
         container.append(&status_label);
 
