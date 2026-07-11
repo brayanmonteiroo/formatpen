@@ -1,100 +1,93 @@
 # FormatPen
 
-Formatador de pendrive com interface GTK4/Libadwaita para Linux.
+Formatador de pendrive com interface gráfica GTK4/Libadwaita para Linux.
 
 ## Funcionalidades
 
-- Lista o **disco inteiro** (`/dev/sdd`), não partições soltas
-- FAT32, exFAT, NTFS ou ext4; reparticiona em **uma única partição**
-- Formatação via UDisks2 e Polkit (senha de admin quando pedido)
+- Lista dispositivos removíveis (pendrives) conectados — **o disco inteiro** (`/dev/sdd`), não partições individuais
+- Seleção do dispositivo a formatar
+- Escolha do tipo de sistema de arquivos: FAT32, exFAT, NTFS, ext4
+- Definição do nome (label) do volume
+- Formatação via UDisks2 (Polkit) — sem necessidade de rodar como root
+- Reparticiona o disco inteiro em **uma única partição** (remove layouts multiboot: Ventoy, ISO híbrida, etc.)
+- Diálogo de confirmação antes de formatar
+- Desmontagem automática de todas as partições antes da formatação
 
 ## Requisitos
 
 - Linux com UDisks2
-- Ferramentas de formatação no host (em geral já instaladas): `dosfstools`, `exfatprogs`, `ntfs-3g`, `e2fsprogs`
+- Fedora: GTK4, Libadwaita e ferramentas de build
 
-### Fedora
-
-```bash
-sudo dnf install gtk4-devel libadwaita-devel gcc pkg-config
-# Flatpak local (opcional):
-sudo dnf install flatpak flatpak-builder
-```
-
-### Debian / Ubuntu
+## Instalação das dependências Rust e GTK4 (Fedora/Debian/Ubuntu)
 
 ```bash
-sudo apt install libgtk-4-dev libadwaita-1-dev gcc pkg-config
-```
-
-### Rust
-
-```bash
+# Rust (se ainda não instalado)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Dependências GTK4 e build (Fedora)
+sudo dnf install gtk4-devel libadwaita-devel meson desktop-file-utils gcc
+
+# Dependências GTK4 e build (Debian/Ubuntu)
+sudo apt install libgtk-4-dev libadwaita-1-dev meson desktop-file-utils gcc
+
+# Pacotes para formatação (geralmente já instalados)
+# dosfstools (FAT32), exfatprogs (exFAT), ntfs-3g (NTFS), e2fsprogs (ext4), parted
 ```
 
-## Desenvolvimento
-
-Na raiz do repositório clonado:
+## Compilação e execução
 
 ```bash
+# Desenvolvimento (modo debug)
 cargo run
-cargo test
+
+# Build de produção
 cargo build --release
+
+# Executar o binário compilado
 ./target/release/formatpen
+
+# Ou instalar em ~/.cargo/bin
+cargo install --path .
+formatpen
 ```
 
-Teste de integração com UDisks2 (só listagem):
+## Testes
 
 ```bash
+# Testes unitários (sem hardware, sem GTK em execução)
+cargo test
+
+# Testes de integração com UDisks2 (só listagem; não altera discos)
 cargo test --test udisks_integration
+
+# Formatação real em pendrive (APAGA DADOS — opcional)
+# export FORMATPEN_TEST_DISK=/org/freedesktop/UDisks2/block_devices/sdd
+# export FORMATPEN_TEST_DRIVE=/org/freedesktop/UDisks2/drives/...
+# cargo test --test udisks_integration formata_disco_de_teste_ponta_a_ponta -- --ignored --nocapture
 ```
 
-## Flatpak (build local)
-
-Manifest: [`flatpak/com.formatpen.FormatPen.yml`](flatpak/com.formatpen.FormatPen.yml) (código do diretório atual).
-
-```bash
-flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install flathub org.gnome.Platform//50 org.gnome.Sdk//50
-flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable//25.08
-
-./scripts/build-flatpak.sh
-flatpak run com.formatpen.FormatPen
-```
-
-Artefatos de build (`flatpak/repo`, `flatpak/.flatpak-builder`) ficam no `.gitignore`.
-
-## Flathub
-
-Publicação via **pull request** em [flathub/flathub](https://github.com/flathub/flathub), branch base **`new-pr`** — ver [Submission](https://docs.flathub.org/docs/for-app-authors/submission).
-
-Manifest de referência para o repo Flathub: [`flatpak/com.formatpen.FormatPen.flathub.yml`](flatpak/com.formatpen.FormatPen.flathub.yml) (git tag + `cargo-sources.json` gerado com [flatpak-cargo-generator](https://github.com/flatpak/flatpak-builder-tools/tree/master/cargo)).
-
-Após aceito na Flathub, atualizações de pacote vão para `https://github.com/flathub/com.formatpen.FormatPen`.
-
-### Nova versão (mantenedor)
-
-1. Bump `version` em `Cargo.toml` e `<release>` em `data/com.formatpen.FormatPen.metainfo.xml`
-2. Commit, tag (`v1.0.x`), push
-3. Regenerar `cargo-sources.json` se `Cargo.lock` mudou:
-
-```bash
-python3 /caminho/flatpak-builder-tools/cargo/flatpak-cargo-generator.py \
-  Cargo.lock -o cargo-sources.json
-```
-
-4. PR no repo `flathub/com.formatpen.FormatPen` com tag, commit e `cargo-sources.json` atualizados
-
-## Estrutura
+## Estrutura do projeto
 
 ```
-formatpen/
-├── src/                 # aplicação Rust + GTK
-├── data/                # desktop, metainfo, ícone
-├── flatpak/             # manifests e screenshot (Flathub)
-├── scripts/build-flatpak.sh
-└── Cargo.toml
+FormatPen/
+├── Cargo.toml
+├── src/
+│   ├── main.rs
+│   ├── lib.rs
+│   ├── label_validation.rs
+│   ├── app.rs
+│   ├── window.rs
+│   ├── models/
+│   │   └── drive.rs
+│   ├── services/
+│   │   ├── udisks.rs
+│   │   └── format.rs
+│   ├── tests/          (integração UDisks2)
+│   └── ui/
+│       ├── drive_list.rs
+│       └── format_form.rs
+└── data/
+    └── com.formatpen.FormatPen.desktop
 ```
 
 ## Licença

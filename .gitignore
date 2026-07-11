@@ -1,9 +1,5 @@
 /target
-/.flatpak-builder
-/flatpak/.flatpak-builder
-/flatpak/repo
-/flatpak/*.flatpak
-/cargo-sources.json
+Cargo.lock
 
 # IDEs / editores
 .idea/

@@ -1,8 +1,6 @@
 [Desktop Entry]
 Name=FormatPen
-Name[pt_BR]=FormatPen
-Comment=USB drive formatter
-Comment[pt_BR]=Formatador de pendrive
+Comment=Formatador de pendrive
 Exec=formatpen
 Icon=com.formatpen.FormatPen
 Terminal=false
