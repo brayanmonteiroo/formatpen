@@ -1,6 +1,11 @@
 /target
 Cargo.lock
 
+# AppImage
+/AppDir
+/appimagetool
+/FormatPen-*.AppImage
+
 # IDEs / editores
 .idea/
 .vscode/
@@ -12,3 +17,6 @@ Cargo.lock
 
 # macOS
 .DS_Store
+
+# Cursor
+.cursor

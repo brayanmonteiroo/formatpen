@@ -1,5 +1,6 @@
+use crate::environment::{self, DriveRefreshOutcome};
 use crate::models::Drive;
-use crate::services::{FormatService, UDisksService};
+use crate::services::FormatService;
 use crate::ui::{DriveList, FormatForm};
 use gtk::prelude::*;
 use libadwaita::prelude::*;
@@ -22,13 +23,56 @@ fn toast_long_message(msg: &str) -> libadwaita::Toast {
 }
 
 /**
- * Carrega a lista de dispositivos removíveis.
+ * Atualiza banner, lista e formulário conforme o estado do ambiente e dos discos.
  */
-fn load_drives() -> Vec<Drive> {
-    UDisksService::list_removable_drives().unwrap_or_else(|e| {
-        eprintln!("Erro ao listar drives: {}", e);
-        Vec::new()
-    })
+fn apply_refresh_outcome(
+    outcome: &DriveRefreshOutcome,
+    banner: &libadwaita::Banner,
+    drive_list: &DriveList,
+    format_form: &FormatForm,
+    selected_drive: &Rc<RefCell<Option<Drive>>>,
+) {
+    *selected_drive.borrow_mut() = None;
+    format_form.set_sensitive(false);
+
+    if let Some(issue) = &outcome.runtime_issue {
+        banner.set_title(&issue.title);
+        banner.remove_css_class("warning");
+        banner.set_revealed(true);
+        drive_list.set_status_message(Some(&issue.detail));
+        drive_list.set_drives(Vec::new());
+        return;
+    }
+
+    if let Some(warning) = &outcome.format_tools_warning {
+        banner.set_title("Ferramentas de formatação incompletas no sistema");
+        banner.add_css_class("warning");
+        banner.set_revealed(true);
+        drive_list.set_status_message(Some(warning));
+    } else {
+        banner.set_revealed(false);
+        banner.remove_css_class("warning");
+    }
+
+    drive_list.set_drives(outcome.drives.clone());
+
+    if outcome.drives.is_empty() {
+        if outcome.format_tools_warning.is_none() {
+            drive_list.set_status_message(Some(
+                "Nenhum dispositivo removível encontrado. Conecte um pendrive e clique em Atualizar.",
+            ));
+        }
+        return;
+    }
+
+    if outcome.format_tools_warning.is_none() {
+        drive_list.set_status_message(None);
+    }
+
+    if let Some(drive) = drive_list.selected_drive() {
+        *selected_drive.borrow_mut() = Some(drive);
+        format_form.set_sensitive(true);
+    }
 }
 
 /**
@@ -50,7 +94,7 @@ impl Window {
     }
 
     /**
-     * Cria uma nova instância da janela principal. 
+     * Cria uma nova instância da janela principal.
      */
     pub fn new(app: &libadwaita::Application) -> Self {
         let window = libadwaita::ApplicationWindow::builder()
@@ -58,7 +102,7 @@ impl Window {
             .title("FormatPen - Formatador de Pendrive")
             .icon_name("com.formatpen.FormatPen")
             .default_width(480)
-            .default_height(420)
+            .default_height(480)
             .resizable(false)
             .build();
 
@@ -72,6 +116,10 @@ impl Window {
 
         let main_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         main_box.append(&header);
+
+        let banner = libadwaita::Banner::new("");
+        banner.set_revealed(false);
+        main_box.append(&banner);
 
         let clamp = libadwaita::Clamp::new();
         clamp.set_maximum_size(480);
@@ -108,17 +156,27 @@ impl Window {
             });
         }
 
-        drive_list.set_drives(load_drives());
-
-        if let Some(drive) = drive_list.selected_drive() {
-            *selected_drive.borrow_mut() = Some(drive);
-            format_form.set_sensitive(true);
-        }
+        apply_refresh_outcome(
+            &environment::refresh_drives(),
+            &banner,
+            &drive_list,
+            &format_form,
+            &selected_drive,
+        );
 
         {
             let dl = drive_list.clone();
+            let bn = banner.clone();
+            let ff = format_form.clone();
+            let sel = selected_drive.clone();
             refresh_btn.connect_clicked(move |_| {
-                dl.set_drives(load_drives());
+                apply_refresh_outcome(
+                    &environment::refresh_drives(),
+                    &bn,
+                    &dl,
+                    &ff,
+                    &sel,
+                );
             });
         }
 
@@ -128,6 +186,8 @@ impl Window {
             let ff = format_form.clone();
             let wc = window.clone();
             let toc = toast_overlay.clone();
+            let bn = banner.clone();
+            let sel = selected_drive.clone();
 
             format_form.format_button.connect_clicked(move |_| {
                 let drive = selected.borrow().clone();
@@ -166,6 +226,8 @@ impl Window {
                 let dl2 = dl.clone();
                 let ff2 = ff.clone();
                 let toc2 = toc.clone();
+                let bn2 = bn.clone();
+                let sel2 = sel.clone();
 
                 dialog.connect_response(None, move |dialog: &libadwaita::MessageDialog, response| {
                     if response != "format" {
@@ -181,6 +243,8 @@ impl Window {
                     let dl3 = dl2.clone();
                     let ff3 = ff2.clone();
                     let toc3 = toc2.clone();
+                    let bn3 = bn2.clone();
+                    let sel3 = sel2.clone();
 
                     glib::spawn_future_local(async move {
                         let result = gio::spawn_blocking(move || {
@@ -197,16 +261,25 @@ impl Window {
 
                         match result {
                             Ok(Ok(())) => {
-                                dl3.set_drives(load_drives());
+                                apply_refresh_outcome(
+                                    &environment::refresh_drives(),
+                                    &bn3,
+                                    &dl3,
+                                    &ff3,
+                                    &sel3,
+                                );
                                 let toast =
                                     libadwaita::Toast::new("Formatação concluída com sucesso");
                                 toc3.add_toast(toast);
                             }
                             Ok(Err(e)) => {
                                 eprintln!("Erro ao formatar: {e:#}");
+                                let hint = environment::install_hint_for_host();
                                 let msg = format!(
-                                    "Falha na formatação: {e:#} \
-                                     Feche o Gerenciador de Partições (ou outro app que use o pendrive) e tente de novo."
+                                    "Falha na formatação: {e:#}\n\n\
+                                     Feche apps que usem o pendrive e tente de novo. \
+                                     Se faltar ferramentas no sistema:\n{}:\n{}",
+                                    hint.label, hint.command
                                 );
                                 let toast = toast_long_message(&msg);
                                 toc3.add_toast(toast);

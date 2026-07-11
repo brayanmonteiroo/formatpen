@@ -11,6 +11,7 @@ use std::rc::Rc;
 pub struct DriveList {
     pub widget: gtk::Box,
     dropdown: gtk::DropDown,
+    status_label: gtk::Label,
     drives: Rc<RefCell<Vec<Drive>>>,
 }
 
@@ -33,10 +34,35 @@ impl DriveList {
         group.add(&dropdown);
         container.append(&group);
 
+        let status_label = gtk::Label::new(None);
+        status_label.set_wrap(true);
+        status_label.set_xalign(0.0);
+        status_label.set_margin_top(8);
+        status_label.add_css_class("dim-label");
+        status_label.set_visible(false);
+        container.append(&status_label);
+
         Self {
             widget: container,
             dropdown,
+            status_label,
             drives: Rc::new(RefCell::new(Vec::new())),
+        }
+    }
+
+    /**
+     * Mensagem abaixo do dropdown (lista vazia, erro ou instrução).
+     */
+    pub fn set_status_message(&self, message: Option<&str>) {
+        match message {
+            Some(text) => {
+                self.status_label.set_text(text);
+                self.status_label.set_visible(true);
+            }
+            None => {
+                self.status_label.set_text("");
+                self.status_label.set_visible(false);
+            }
         }
     }
 
