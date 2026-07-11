@@ -81,7 +81,7 @@ echo "==> Gerando AppImage com update information..."
 rm -f "$OUTPUT" "$ZSYNC_OUTPUT"
 ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run \
   -u "$UPDATE_INFO" \
-  "$APPDIR/usr/share/applications/${APP_ID}.desktop" \
+  "$APPDIR" \
   "$OUTPUT"
 
 if [[ ! -f "$OUTPUT" ]]; then
