@@ -64,7 +64,7 @@ O AppImage empacota só o binário e metadados (ícone, `.desktop`). Veja [Requi
 Build local (Fedora):
 
 ```bash
-sudo dnf install gtk4-devel libadwaita-devel gcc pkg-config fuse fuse-libs curl
+sudo dnf install gtk4-devel libadwaita-devel gcc pkg-config fuse fuse-libs curl zsync
 chmod +x scripts/build-appimage.sh
 ./scripts/build-appimage.sh
 ./FormatPen-*-x86_64.AppImage
@@ -77,6 +77,27 @@ Em sistemas sem FUSE2 (ex.: Fedora Atomic 44+):
 ```
 
 Releases com tag `v*` geram o AppImage automaticamente via GitHub Actions (`.github/workflows/appimage.yml`). Os requisitos de runtime estão na seção [Pacotes de runtime](#pacotes-de-runtime-appimage-e-uso-geral) acima.
+
+### Atualizações automáticas (AppImage)
+
+A partir das releases com update information embutida, o FormatPen verifica novas versões no GitHub via **zsync** (baixa só o que mudou).
+
+| Comportamento | Descrição |
+|---------------|-----------|
+| 1ª execução (AppImage) | Diálogo pede consentimento para verificar updates |
+| Com opt-in | Verifica ~2s após abrir a janela e instala silenciosamente se houver versão nova |
+| Manual | Botão de atualização no cabeçalho (ícone de download) |
+| Reinício | Após instalar, dialog pede para reiniciar o app |
+
+Desativar completamente:
+
+```bash
+FORMATPEN_NO_UPDATE=1 ./FormatPen-*-x86_64.AppImage
+```
+
+Build local gera `FormatPen-X.Y.Z-x86_64.AppImage` **e** o `.zsync` correspondente (requer `zsyncmake` no PATH).
+
+**Nota:** AppImages antigos (sem update info embutida) não auto-atualizam; baixe uma release recente uma vez.
 
 ## Compilação e execução
 

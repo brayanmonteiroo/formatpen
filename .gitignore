@@ -5,6 +5,7 @@ Cargo.lock
 /AppDir
 /appimagetool
 /FormatPen-*.AppImage
+/FormatPen-*.AppImage.zsync
 
 # IDEs / editores
 .idea/

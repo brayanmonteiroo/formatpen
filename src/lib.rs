@@ -5,6 +5,7 @@ pub mod label_validation;
 pub mod models;
 pub mod services;
 pub mod ui;
+pub mod updater;
 pub mod window;
 
 #[cfg(test)]

@@ -3,9 +3,11 @@ use crate::format_errors;
 use crate::models::Drive;
 use crate::services::FormatService;
 use crate::ui::{DriveList, FormatForm};
+use crate::updater::{self, AutoUpdatePref, UpdateOutcome};
 use gtk::prelude::*;
 use libadwaita::prelude::*;
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 /**
@@ -21,6 +23,172 @@ fn toast_long_message(msg: &str) -> libadwaita::Toast {
         .custom_title(&label)
         .timeout(8)
         .build()
+}
+
+fn show_restart_dialog(
+    window: &libadwaita::ApplicationWindow,
+    app: &libadwaita::Application,
+    appimage_path: &PathBuf,
+) {
+    let dialog = libadwaita::MessageDialog::new(
+        Some(window),
+        Some("Atualização instalada"),
+        Some("Reinicie o FormatPen para usar a nova versão."),
+    );
+    dialog.add_response("later", "Depois");
+    dialog.add_response("restart", "Reiniciar agora");
+    dialog.set_default_response(Some("restart"));
+    dialog.set_close_response("later");
+
+    let app = app.clone();
+    let path = appimage_path.clone();
+    dialog.connect_response(None, move |dialog, response| {
+        dialog.close();
+        if response == "restart" {
+            if let Err(e) = updater::restart_appimage(&path) {
+                eprintln!("Erro ao reiniciar: {e}");
+            } else {
+                app.quit();
+            }
+        }
+    });
+    dialog.present();
+}
+
+fn run_update_flow(
+    app: &libadwaita::Application,
+    window: &libadwaita::ApplicationWindow,
+    toast_overlay: &libadwaita::ToastOverlay,
+    manual: bool,
+) {
+    let Some(appimage) = updater::appimage_path() else {
+        return;
+    };
+
+    if manual {
+        toast_overlay.add_toast(libadwaita::Toast::new("Verificando atualizações..."));
+    }
+
+    let app = app.clone();
+    let window = window.clone();
+    let toast_overlay = toast_overlay.clone();
+
+    glib::spawn_future_local(async move {
+        let result = gio::spawn_blocking(move || updater::check_and_apply_update(&appimage)).await;
+
+        match result {
+            Ok(UpdateOutcome::UpToDate) => {
+                if manual {
+                    toast_overlay.add_toast(libadwaita::Toast::new(
+                        "Você já está na versão mais recente.",
+                    ));
+                }
+            }
+            Ok(UpdateOutcome::Updated { path }) => {
+                show_restart_dialog(&window, &app, &path);
+            }
+            Ok(UpdateOutcome::Failed(e)) => {
+                eprintln!("Falha ao atualizar FormatPen: {e}");
+                if manual {
+                    let toast = toast_long_message(&format!(
+                        "Não foi possível verificar ou baixar a atualização.\n{e}"
+                    ));
+                    toast_overlay.add_toast(toast);
+                }
+            }
+            Ok(UpdateOutcome::NotApplicable) => {}
+            Err(e) => {
+                eprintln!("Erro ao verificar atualizações: {e:?}");
+                if manual {
+                    toast_overlay
+                        .add_toast(libadwaita::Toast::new("Erro ao verificar atualizações."));
+                }
+            }
+        }
+    });
+}
+
+fn show_update_consent_dialog(
+    app: &libadwaita::Application,
+    window: &libadwaita::ApplicationWindow,
+    toast_overlay: &libadwaita::ToastOverlay,
+) {
+    let dialog = libadwaita::MessageDialog::new(
+        Some(window),
+        Some("Verificar atualizações?"),
+        Some(
+            "O FormatPen pode verificar novas versões no GitHub e baixar apenas \
+             o que mudou (economiza banda). Você pode desativar depois com \
+             FORMATPEN_NO_UPDATE=1.",
+        ),
+    );
+    dialog.add_response("deny", "Não perguntar de novo");
+    dialog.add_response("allow", "Permitir");
+    dialog.set_default_response(Some("allow"));
+    dialog.set_close_response("deny");
+
+    let app = app.clone();
+    let window = window.clone();
+    let toast_overlay = toast_overlay.clone();
+    dialog.connect_response(None, move |dialog, response| {
+        dialog.close();
+        let enabled = response == "allow";
+        if let Err(e) = updater::save_auto_update_pref(enabled) {
+            eprintln!("Erro ao salvar preferência de update: {e}");
+        }
+        if enabled {
+            let app2 = app.clone();
+            let window2 = window.clone();
+            let toast2 = toast_overlay.clone();
+            glib::timeout_add_seconds_local(2, move || {
+                run_update_flow(&app2, &window2, &toast2, false);
+                glib::ControlFlow::Break
+            });
+        }
+    });
+    dialog.present();
+}
+
+fn setup_appimage_updates(
+    app: &libadwaita::Application,
+    window: &libadwaita::ApplicationWindow,
+    toast_overlay: &libadwaita::ToastOverlay,
+    update_btn: &gtk::Button,
+) {
+    if !updater::is_appimage() || updater::updates_disabled() {
+        update_btn.set_visible(false);
+        return;
+    }
+
+    {
+        let app = app.clone();
+        let window = window.clone();
+        let toast_overlay = toast_overlay.clone();
+        update_btn.connect_clicked(move |_| {
+            run_update_flow(&app, &window, &toast_overlay, true);
+        });
+    }
+
+    match updater::load_auto_update_pref() {
+        AutoUpdatePref::NotAsked => {
+            let app = app.clone();
+            let window = window.clone();
+            let toast_overlay = toast_overlay.clone();
+            glib::idle_add_local_once(move || {
+                show_update_consent_dialog(&app, &window, &toast_overlay);
+            });
+        }
+        AutoUpdatePref::Enabled => {
+            let app = app.clone();
+            let window = window.clone();
+            let toast_overlay = toast_overlay.clone();
+            glib::timeout_add_seconds_local(2, move || {
+                run_update_flow(&app, &window, &toast_overlay, false);
+                glib::ControlFlow::Break
+            });
+        }
+        AutoUpdatePref::Disabled => {}
+    }
 }
 
 /**
@@ -113,7 +281,11 @@ impl Window {
 
         let refresh_btn = gtk::Button::from_icon_name("view-refresh-symbolic");
         refresh_btn.set_tooltip_text(Some("Atualizar lista de dispositivos"));
+
+        let update_btn = gtk::Button::from_icon_name("system-software-update-symbolic");
+        update_btn.set_tooltip_text(Some("Verificar atualizações"));
         header.pack_end(&refresh_btn);
+        header.pack_end(&update_btn);
 
         let main_box = gtk::Box::new(gtk::Orientation::Vertical, 0);
         main_box.append(&header);
@@ -313,6 +485,8 @@ impl Window {
         version_label.set_margin_bottom(8);
         version_label.set_halign(gtk::Align::Center);
         main_box.append(&version_label);
+
+        setup_appimage_updates(app, &window, &toast_overlay, &update_btn);
 
         window.set_content(Some(&main_box));
 

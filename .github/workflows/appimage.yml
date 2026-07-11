@@ -26,7 +26,8 @@ jobs:
           sudo apt-get install -y \
             libgtk-4-dev \
             libadwaita-1-dev \
-            libfuse2
+            libfuse2 \
+            zsync
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -38,7 +39,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: FormatPen-*.AppImage
+          files: |
+            FormatPen-*.AppImage
+            FormatPen-*.AppImage.zsync
           generate_release_notes: true
 
       - name: Upload artifact
@@ -46,5 +49,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: formatpen-appimage
-          path: FormatPen-*.AppImage
+          path: |
+            FormatPen-*.AppImage
+            FormatPen-*.AppImage.zsync
           retention-days: 7

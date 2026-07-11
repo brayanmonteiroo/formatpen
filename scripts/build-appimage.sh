@@ -69,16 +69,33 @@ if [[ ! -x "$APPIMAGETOOL" ]]; then
   chmod +x "$APPIMAGETOOL"
 fi
 
-echo "==> Gerando AppImage..."
-rm -f "$OUTPUT"
-ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run "$APPDIR" "$OUTPUT"
+if ! command -v zsyncmake >/dev/null 2>&1; then
+  echo "Erro: zsyncmake não encontrado (instale o pacote zsync)." >&2
+  exit 1
+fi
+
+UPDATE_INFO="gh-releases-zsync|brayanmonteiroo|formatpen|latest|FormatPen-*-x86_64.AppImage.zsync"
+ZSYNC_OUTPUT="${OUTPUT}.zsync"
+
+echo "==> Gerando AppImage com update information..."
+rm -f "$OUTPUT" "$ZSYNC_OUTPUT"
+ARCH=x86_64 "$APPIMAGETOOL" --appimage-extract-and-run \
+  -u "$UPDATE_INFO" \
+  "$APPDIR/usr/share/applications/${APP_ID}.desktop" \
+  "$OUTPUT"
 
 if [[ ! -f "$OUTPUT" ]]; then
   echo "Erro: AppImage não foi gerado." >&2
   exit 1
 fi
 
+if [[ ! -f "$ZSYNC_OUTPUT" ]]; then
+  echo "Erro: arquivo .zsync não foi gerado (necessário para auto-atualização)." >&2
+  exit 1
+fi
+
 chmod +x "$OUTPUT"
 echo "==> Pronto: $OUTPUT"
+echo "    Zsync:  $ZSYNC_OUTPUT"
 echo "    Executar: $OUTPUT"
 echo "    Sem FUSE2: $OUTPUT --appimage-extract-and-run"

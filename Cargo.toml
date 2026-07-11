@@ -1,6 +1,6 @@
 [package]
 name = "formatpen"
-version = "1.0.7"
+version = "1.0.8"
 edition = "2021"
 description = "Formatador de pendrive com interface GTK4"
 authors = ["FormatPen"]
@@ -27,3 +27,4 @@ gio = "0.21"
 zbus = { version = "4", features = ["blocking"] }
 thiserror = "2"
 anyhow = "1"
+appimageupdate = "0.3.2"
