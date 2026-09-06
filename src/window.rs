@@ -271,7 +271,7 @@ impl Window {
             .title("FormatPen - Formatador de Pendrive")
             .icon_name("com.formatpen.FormatPen")
             .default_width(480)
-            .default_height(480)
+            .default_height(-1)
             .resizable(false)
             .build();
 
@@ -302,10 +302,6 @@ impl Window {
         clamp.set_margin_end(12);
 
         let toast_overlay = libadwaita::ToastOverlay::new();
-        let scroll = gtk::ScrolledWindow::new();
-        scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
-        scroll.set_vexpand(true);
-        scroll.set_overlay_scrolling(false);
 
         let content = gtk::Box::new(gtk::Orientation::Vertical, 16);
         content.set_margin_top(8);
@@ -472,8 +468,7 @@ impl Window {
             });
         }
 
-        scroll.set_child(Some(&content));
-        clamp.set_child(Some(&scroll));
+        clamp.set_child(Some(&content));
         toast_overlay.set_child(Some(&clamp));
         main_box.append(&toast_overlay);
 
